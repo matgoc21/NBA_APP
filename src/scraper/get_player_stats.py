@@ -19,7 +19,7 @@ def fetch_box_scores(game_ids_list):
 
     print(f"Rozpoczynam pobieranie statystyk dla {total} meczów...")
 
-    for i, game_id in enumerate(game_ids_list[:5]):
+    for i, game_id in enumerate(game_ids_list):
         try:
             box_score = boxscoretraditionalv2.BoxScoreTraditionalV2(game_id = game_id)
             player_stats = box_score.player_stats.get_data_frame()
@@ -31,9 +31,9 @@ def fetch_box_scores(game_ids_list):
             print(f"Błąd przy meczu {game_id}: {e}")
             time.sleep(1)
 
-        if all_stats:
-            return pd.concat(all_stats, ignore_index=True)
-        else:
+    if all_stats:
+        return pd.concat(all_stats, ignore_index=True)
+    else:
             return pd.DataFrame()
 
 if __name__ == "__main__":

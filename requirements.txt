@@ -2,3 +2,8 @@ nba_api
 pandas
 requests
 jupyter
+SQLAlchemy
+psycopg2-binary
+django
+djangorestframework
+django-cors-headers
