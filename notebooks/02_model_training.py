@@ -1,3 +1,6 @@
+import os
+
+import joblib
 import pandas as pd
 from sqlalchemy import create_engine
 from sklearn.model_selection import train_test_split
@@ -46,3 +49,6 @@ mae = mean_absolute_error(y_test, predictions)
 
 print(f"\n---WYNIKI TESTU---")
 print(f"Średni błąd modelu (MAE): {mae:.2f} punktu.")
+os.makedirs('models', exist_ok=True)
+joblib.dump(model, 'models/nba_scoringmodel.joblib')
+print("Model został zapisany na dysku")
