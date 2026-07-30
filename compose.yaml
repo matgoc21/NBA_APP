@@ -1,0 +1,8 @@
+services:
+  nbaapp:
+    image: nbaapp
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - 5432:5432
