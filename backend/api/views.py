@@ -8,13 +8,22 @@ from rest_framework.response import Response
 from rest_framework import status
 # Create your views here.
 
-MODEL_PATH = os.path.join(settings.BASE_DIR, '../models/nba_scoring_model.joblib')
+# MODEL_PATH = os.path.join(settings.BASE_DIR, '../models/nba_scoring_model.joblib')
+# try:
+#     ml_model = joblib.load(MODEL_PATH)
+#     print("Model loaded")
+# except FileNotFoundError:
+#     ml_model = None
+#     print("Model NOT loaded")
+BASE_DIR_STR = str(settings.BASE_DIR)
+MODEL_PATH = os.path.abspath(os.path.join(BASE_DIR_STR, '..', 'models', 'nba_scoringmodel.joblib'))
+print(f"Ladowanie modelu: {MODEL_PATH} \n")
 try:
     ml_model = joblib.load(MODEL_PATH)
-    print("Model loaded")
-except FileNotFoundError:
+    print("--- DEBUG: Z sukcesem załadowano model Machine Learning! ---")
+except Exception as e:
     ml_model = None
-    print("Model NOT loaded")
+    print(f"--- DEBUG: BŁĄD ŁADOWANIA MODELU: {e} ---")
 class PredictPlayerScoreView(APIView):
     def post(self,request):
         """
