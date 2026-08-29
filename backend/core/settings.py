@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
+    'api'
 ]
 
 MIDDLEWARE = [
@@ -76,10 +77,15 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'nba_predictions',          # Nazwa Twojej bazy danych
+        'USER': 'nba_user',        # Twój użytkownik bazy
+        'PASSWORD': 'supertajnehaslo123',    # Twoje hasło
+        'HOST': '127.0.0.1',       # Zakładam, że kontener udostępnia port na localhost
+        'PORT': '5432',
     }
 }
+
 
 
 # Password validation

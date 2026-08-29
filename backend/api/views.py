@@ -6,6 +6,8 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.http import JsonResponse
+from .models import Team, Player
 # Create your views here.
 
 # MODEL_PATH = os.path.join(settings.BASE_DIR, '../models/nba_scoring_model.joblib')
@@ -60,3 +62,12 @@ class PredictPlayerScoreView(APIView):
         except Exception as e:
             return Response({"error": f"Błąd przetwarzania: {str(e)}"},
                             status = status.HTTP_400_BAD_REQUEST)
+        
+def get_teams(request):
+    """
+    Get list of NBA teams
+    
+    """
+    teams_query = Team.objects.all().values('id', 'name')
+    teams_list = list(teams_query)
+    return JsonResponse(teams_list, safe=False)
