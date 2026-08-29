@@ -1,1 +1,33 @@
-/data/
+# --- Python / Django ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+db.sqlite3
+media/
+staticfiles/
+
+# --- Node.js / React / Vite ---
+node_modules/
+dist/
+dist-ssr/
+.npm/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- Machine Learning ---
+*.joblib
+*.pkl
+*.h5
+*.model
+
+# --- System / IDE ---
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo

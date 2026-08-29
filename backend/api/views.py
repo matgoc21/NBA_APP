@@ -71,3 +71,6 @@ def get_teams(request):
     teams_query = Team.objects.all().values('id', 'name')
     teams_list = list(teams_query)
     return JsonResponse(teams_list, safe=False)
+def get_players_by_team(request, team_id):
+    players = Player.objects.filter(team__id=team_id).values('id', 'full_name', 'position')
+    return JsonResponse(list(players), safe=False)
