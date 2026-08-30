@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
-from .models import Team, Player
+from .models import Team, Player, Game
 # Create your views here.
 
 # MODEL_PATH = os.path.join(settings.BASE_DIR, '../models/nba_scoring_model.joblib')
@@ -74,3 +74,25 @@ def get_teams(request):
 def get_players_by_team(request, team_id):
     players = Player.objects.filter(team__id=team_id).values('id', 'full_name', 'position')
     return JsonResponse(list(players), safe=False)
+def get_games(request):
+
+    games_query = Game.objects.select_related('home_team', 'away_team').all().order_by('-game_date')
+
+    games_list = []
+    for game in games_query:
+        games_list.append({
+            'id': game.id,
+            'nba_game_id': game.nba_game_id,
+            'game_date': game.game_date.strftime('%Y-%m-%d'),
+            'home_team': {
+                'id': game.home_team.id,
+                'name': game.home_team.name,
+                'abbreviation': game.home_team.abbreviation
+            },
+            'away_team': {
+                'id': game.away_team.id,
+                'name': game.away_team.name,
+                'abbreviation': game.away_team.abbreviation
+            }
+        })
+    return JsonResponse(games_list, safe=False)
