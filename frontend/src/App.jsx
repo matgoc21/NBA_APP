@@ -7,7 +7,9 @@ function App() {
   const [selectedTeam, setSelectedTeam] = useState("");
   const [players, setPlayers] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState("");
-
+  // states for ai
+  const [predictionResult, setPredictionResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -31,7 +33,7 @@ function App() {
     }
     const fetchPlayers = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1/api/teams/${selectedTeam}/players/`);
+        const response = await fetch(`http://127.0.0.1:8000/api/teams/${selectedTeam}/players/`);
         const data = await response.json();
         setPlayers(data);
         setSelectedPlayer(""); //reset player after changing teams
@@ -49,6 +51,36 @@ const handleGameChange = (e) => {
   setSelectedTeam(""); //hides players
   setSelectedPlayer(""); //resets choice
 };
+const selectedGameObj = games.find(g => g.id.toString() === selectedGameId.toString());
+
+const handlePredictClick = async () => {
+  setIsLoading(true);
+  setPredictionResult(null);
+  // Getting opponent id
+
+  const opponentTeamId = selectedTeam.toString() === selectedGameObj.away_team.id.toString() ? selectedGameObj.home_team.id : selectedGameObj.away_team.id;
+  try {
+    const response = await fetch('http://127.0.0.1:8000/api/predict/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        player_id: selectedPlayer,
+        opponent_team_id: opponentTeamId,
+        game_id: selectedGameId
+      })
+    });
+
+    const data = await response.json();
+    setPredictionResult(data);
+  }catch (error){
+    console.error("Błąd podczas predykcji:", error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h1>NBA AI Predictor</h1>
@@ -120,9 +152,22 @@ return (
                 : selectedGameObj.away_team.id}
             </strong>
           </p>
-          <button style={{ marginTop: '10px', padding: '10px 20px', cursor: 'pointer' }}>
-            Rozpocznij Predykcję AI
+          <button 
+            onClick={handlePredictClick}
+            disabled={isLoading}
+            style={{ marginTop: '10px', padding: '10px 20px', cursor: 'pointer' }}
+            >
+              {isLoading ? "Calculating...": "Start Prediction"}
           </button>
+          {/*Prediction result section */}
+          {predictionResult && (
+            <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e6ffe6', border: '1px solid #4caf50', borderRadius: '8px' }}>
+              <h3 style={{ margin: '0 0 10px 0', color: '#2e7d32' }}>Wynik Predykcji:</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold', margin: '0' }}>
+                {predictionResult.predicted_points} pkt
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
