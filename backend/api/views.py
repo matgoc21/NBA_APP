@@ -3,9 +3,12 @@ import joblib
 import json
 import numpy as np
 import pandas as pd
+from datetime import datetime, timedelta
 from django.shortcuts import render
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
+from django.shortcuts import get_object_or_404
+from nba_api.stats.endpoints import playergamelogs
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -13,60 +16,9 @@ from django.http import JsonResponse
 from .models import Team, Player, Game
 # Create your views here.
 
-# MODEL_PATH = os.path.join(settings.BASE_DIR, '../models/nba_scoring_model.joblib')
-# try:
-#     ml_model = joblib.load(MODEL_PATH)
-#     print("Model loaded")
-# except FileNotFoundError:
-#     ml_model = None
-#     print("Model NOT loaded")
-
-
-# BASE_DIR_STR = str(settings.BASE_DIR)
-# MODEL_PATH = os.path.abspath(os.path.join(BASE_DIR_STR, '..', 'models', 'nba_scoringmodel.joblib'))
-# print(f"Ladowanie modelu: {MODEL_PATH} \n")
-# try:
-#     ml_model = joblib.load(MODEL_PATH)
-#     print("--- DEBUG: Z sukcesem załadowano model Machine Learning! ---")
-# except Exception as e:
-#     ml_model = None
-#     print(f"--- DEBUG: BŁĄD ŁADOWANIA MODELU: {e} ---")
-# class PredictPlayerScoreView(APIView):
-#     def post(self,request):
-#         """
-#         Predict player score
-#         :param request:
-#         :return:
-#         """
-#         if ml_model is None:
-#             return Response(
-#                 {"error": "Model AI not loaded"},
-#                 status=status.HTTP_503_SERVICE_UNAVAILABLE
-#             )
-
-#         try:
-#             data = request.data
-#             pts_5g_avg = float(data.get('PTS_5G_AVG', 0))
-#             days_rest = float(data.get('DAYS_REST', 0))
-#             home_game = int(data.get('HOME_GAME', 0))
-#             input_df = pd.DataFrame([{
-#                 'PTS_5G_AVG': pts_5g_avg,
-#                 'DAYS_REST': days_rest,
-#                 'HOME_GAME': home_game
-#             }])
-#             prediction = ml_model.predict(input_df)
-#             predicted_score = round(prediction[0], 1)
-#             return Response({
-#                 "predicted_pts": predicted_score,
-#                 "input_data": {
-#                     "PTS_5G_AVG": pts_5g_avg,
-#                     "DAYS_REST": days_rest,
-#                     "HOME_GAME": home_game
-#                 }
-#             }, status = status.HTTP_200_OK)
-#         except Exception as e:
-#             return Response({"error": f"Błąd przetwarzania: {str(e)}"},
-#                             status = status.HTTP_400_BAD_REQUEST)
+#LOADING THE MODEL ONCE
+MODEL_PATH= os.path.abspath(os.path.join(str(settings.BASE_DIR), '..', 'models', 'nba_scoringmodel.joblib'))
+MODEL = joblib.load(MODEL_PATH)
 @csrf_exempt       
 def predict_score(request):
     """
@@ -76,31 +28,63 @@ def predict_score(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            player_id = data.get('player_id')
-            game_id = data.get('game_id')
+            player = get_object_or_404(Player, id=data.get('player_id'))
+            game = get_object_or_404(Game, id = data.get('game_id'))
 
-            #Mock data, to be replaced with nba_api fetch
+            home_game = 1 if player.team == game.home_team else 0
 
-            pts_5g_avg = 22.5
-            days_rest = 2
-            home_game = 1
+            year = game.game_date.year
+            season_year = year if game.game_date.month > 7 else year - 1
+            season_str = f"{season_year}-{str(season_year + 1)[-2:]}"
 
-            #Loading the model
+            date_before_game = (game.game_date - timedelta(days=1)).strftime('%m/%d/%Y')
+            try:
 
-            model_path = os.path.abspath(os.path.join(str(settings.BASE_DIR), '..', 'models', 'nba_scoringmodel.joblib'))
-            model = joblib.load(model_path)
+                log = playergamelogs.PlayerGameLogs(
+                    player_id_nullable=player.nba_id,
+                    season_nullable=season_str,
+                )
+                df = log.get_data_frames()[0]
+            except Exception as api_err:
+                print(f"Ostrzeżenie: Błąd API NBA: {api_err}")
+                df = pd.DataFrame()
 
-            #Setting an array in exatly the way model expects it
+            if not df.empty:
 
+                df['GAME_DATE_OBJ'] = pd.to_datetime(df['GAME_DATE']).dt.date
+
+                df_filtered = df[df['GAME_DATE_OBJ'] < game.game_date]
+
+                df_filtered = df_filtered.sort_values(by='GAME_DATE_OBJ', ascending = False)
+
+                if not df_filtered.empty:
+                    pts_5g_avg = float(df_filtered.head(5)['PTS'].mean())
+                    last_game_date = df_filtered.iloc[0]['GAME_DATE_OBJ']
+                    days_rest = (game.game_date - last_game_date).days
+                else:
+                    #If first game of the season or a debut
+                    pts_5g_avg = 0.0
+                    days_rest = 7
+            else:
+                #If first game of the season or a debut
+                pts_5g_avg = 0.0
+                days_rest = 7
             features = np.array([[pts_5g_avg, days_rest, home_game]])
-            #Prediction
-            prediction = model.predict(features)[0]
+
+            prediction = MODEL.predict(features)[0]
 
             return JsonResponse({
                 'predicted_points': round(prediction, 1),
+                'debug_features': {
+                    'pts_5g_avg' : round(pts_5g_avg, 1),
+                    'days_rest': days_rest,
+                    'home_game': home_game
+                },
                 'status': 'success'
             })
         except Exception as e:
+            import traceback
+            print(traceback.format_exc())
             return JsonResponse({
                 'error': str(e)}, 
                 status=500)
