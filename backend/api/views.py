@@ -1,8 +1,11 @@
 import os
 import joblib
+import json
+import numpy as np
 import pandas as pd
 from django.shortcuts import render
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,52 +20,94 @@ from .models import Team, Player, Game
 # except FileNotFoundError:
 #     ml_model = None
 #     print("Model NOT loaded")
-BASE_DIR_STR = str(settings.BASE_DIR)
-MODEL_PATH = os.path.abspath(os.path.join(BASE_DIR_STR, '..', 'models', 'nba_scoringmodel.joblib'))
-print(f"Ladowanie modelu: {MODEL_PATH} \n")
-try:
-    ml_model = joblib.load(MODEL_PATH)
-    print("--- DEBUG: Z sukcesem załadowano model Machine Learning! ---")
-except Exception as e:
-    ml_model = None
-    print(f"--- DEBUG: BŁĄD ŁADOWANIA MODELU: {e} ---")
-class PredictPlayerScoreView(APIView):
-    def post(self,request):
-        """
-        Predict player score
-        :param request:
-        :return:
-        """
-        if ml_model is None:
-            return Response(
-                {"error": "Model AI not loaded"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
 
+
+# BASE_DIR_STR = str(settings.BASE_DIR)
+# MODEL_PATH = os.path.abspath(os.path.join(BASE_DIR_STR, '..', 'models', 'nba_scoringmodel.joblib'))
+# print(f"Ladowanie modelu: {MODEL_PATH} \n")
+# try:
+#     ml_model = joblib.load(MODEL_PATH)
+#     print("--- DEBUG: Z sukcesem załadowano model Machine Learning! ---")
+# except Exception as e:
+#     ml_model = None
+#     print(f"--- DEBUG: BŁĄD ŁADOWANIA MODELU: {e} ---")
+# class PredictPlayerScoreView(APIView):
+#     def post(self,request):
+#         """
+#         Predict player score
+#         :param request:
+#         :return:
+#         """
+#         if ml_model is None:
+#             return Response(
+#                 {"error": "Model AI not loaded"},
+#                 status=status.HTTP_503_SERVICE_UNAVAILABLE
+#             )
+
+#         try:
+#             data = request.data
+#             pts_5g_avg = float(data.get('PTS_5G_AVG', 0))
+#             days_rest = float(data.get('DAYS_REST', 0))
+#             home_game = int(data.get('HOME_GAME', 0))
+#             input_df = pd.DataFrame([{
+#                 'PTS_5G_AVG': pts_5g_avg,
+#                 'DAYS_REST': days_rest,
+#                 'HOME_GAME': home_game
+#             }])
+#             prediction = ml_model.predict(input_df)
+#             predicted_score = round(prediction[0], 1)
+#             return Response({
+#                 "predicted_pts": predicted_score,
+#                 "input_data": {
+#                     "PTS_5G_AVG": pts_5g_avg,
+#                     "DAYS_REST": days_rest,
+#                     "HOME_GAME": home_game
+#                 }
+#             }, status = status.HTTP_200_OK)
+#         except Exception as e:
+#             return Response({"error": f"Błąd przetwarzania: {str(e)}"},
+#                             status = status.HTTP_400_BAD_REQUEST)
+@csrf_exempt       
+def predict_score(request):
+    """
+    Predict player score using a loded model.
+    """
+
+    if request.method == 'POST':
         try:
-            data = request.data
-            pts_5g_avg = float(data.get('PTS_5G_AVG', 0))
-            days_rest = float(data.get('DAYS_REST', 0))
-            home_game = int(data.get('HOME_GAME', 0))
-            input_df = pd.DataFrame([{
-                'PTS_5G_AVG': pts_5g_avg,
-                'DAYS_REST': days_rest,
-                'HOME_GAME': home_game
-            }])
-            prediction = ml_model.predict(input_df)
-            predicted_score = round(prediction[0], 1)
-            return Response({
-                "predicted_pts": predicted_score,
-                "input_data": {
-                    "PTS_5G_AVG": pts_5g_avg,
-                    "DAYS_REST": days_rest,
-                    "HOME_GAME": home_game
-                }
-            }, status = status.HTTP_200_OK)
+            data = json.loads(request.body)
+            player_id = data.get('player_id')
+            game_id = data.get('game_id')
+
+            #Mock data, to be replaced with nba_api fetch
+
+            pts_5g_avg = 22.5
+            days_rest = 2
+            home_game = 1
+
+            #Loading the model
+
+            model_path = os.path.abspath(os.path.join(str(settings.BASE_DIR), '..', 'models', 'nba_scoringmodel.joblib'))
+            model = joblib.load(model_path)
+
+            #Setting an array in exatly the way model expects it
+
+            features = np.array([[pts_5g_avg, days_rest, home_game]])
+            #Prediction
+            prediction = model.predict(features)[0]
+
+            return JsonResponse({
+                'predicted_points': round(prediction, 1),
+                'status': 'success'
+            })
         except Exception as e:
-            return Response({"error": f"Błąd przetwarzania: {str(e)}"},
-                            status = status.HTTP_400_BAD_REQUEST)
-        
+            return JsonResponse({
+                'error': str(e)}, 
+                status=500)
+    return JsonResponse({
+        'error': 'Only POST method allowed'
+    }, status = 405)
+
 def get_teams(request):
     """
     Get list of NBA teams
