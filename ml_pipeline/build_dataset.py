@@ -13,17 +13,17 @@ def fetch_base_data():
 
         #Matrix for Y_reg and Y_clf (teams)
         team_log = teamgamelogs.TeamGameLogs(season_nullable=season)
-        team_logs_list.append(team_log.get_data_frames)
+        team_logs_list.append(team_log.get_data_frames()[0])
         time.sleep(1.5) # rate-limiting prevention
 
         #Matrix for indivdual estimators
 
         player_log = playergamelogs.PlayerGameLogs(season_nullable=season)
-        player_logs_list.append(player_log.get_data_frames)
+        player_logs_list.append(player_log.get_data_frames()[0])
         time.sleep(1.5)
 
     df_team = pd.concat(team_logs_list, ignore_index= True)
-    df_player = pd.concat(player_logs_list, ignore_index)
+    df_player = pd.concat(player_logs_list, ignore_index = True)
 
     df_team.to_csv('raw_team_logs.csv', index = False)
     df_player.to_csv('raw_player_logs.csv', index = False)
