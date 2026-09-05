@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
 from .models import Team, Player, Game
+import xgboost as xgb
 # Create your views here.
 
 #LOADING THE MODEL ONCE
