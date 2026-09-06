@@ -7,5 +7,6 @@ urlpatterns = [
     path('teams/', views.get_teams, name='get_teams'),
     path('teams/<int:team_id>/players/', views.get_players_by_team, name='team-players'),
     path('games/', views.get_games, name='get_games'),
+    path('predict-matchup/', views.predict_matchup, name='predict_matchup'),
 
 ]
