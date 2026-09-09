@@ -13,7 +13,7 @@ const TeamMatchupCard = ({ matchupData }) => {
             <div className="flex justify-between items-end mb-2">
                 <span className="text-2xl font-bold text-green-400">{predicted_winner}</span>
                 <span className="text-sm text-gray-300">
-                    Przewaga: <strong className="text-white">{point_differential} pkt</strong>
+                    Point difference: <strong className="text-white">{point_differential} points</strong>
                 </span>
             </div>
 
@@ -25,7 +25,7 @@ const TeamMatchupCard = ({ matchupData }) => {
                 ></div>
             </div>
             <div className="text-right mt-1 text-xs text-gray-400">
-                Szansa na wygraną: {win_probability}%
+                Win probability: {win_probability}%
             </div>
         </div>
     );

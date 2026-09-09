@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import PlayerPredictionCard from "./PlayerPredictionCard";
+import TeamMatchupCard from "./TeamMatchupCard";
+
 function App() {
   //states for games
   const [games, setGames] = useState([]);
@@ -10,6 +13,8 @@ function App() {
   // states for ai
   const [predictionResult, setPredictionResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [matchupResult, setMatchupResult] = useState(null);
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -52,19 +57,20 @@ const handleGameChange = (e) => {
   setSelectedPlayer(""); //resets choice
 };
 const selectedGameObj = games.find(g => g.id.toString() === selectedGameId.toString());
+const selectedPlayerObj = players.find(p => p.id.toString() === selectedPlayer.toString());
+
 
 const handlePredictClick = async () => {
   setIsLoading(true);
   setPredictionResult(null);
+  setMatchupResult(null);
   // Getting opponent id
 
   const opponentTeamId = selectedTeam.toString() === selectedGameObj.away_team.id.toString() ? selectedGameObj.home_team.id : selectedGameObj.away_team.id;
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/predict/', {
+    const playerResponse = await fetch('http://127.0.0.1:8000/api/predict-score/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         player_id: selectedPlayer,
         opponent_team_id: opponentTeamId,
@@ -72,10 +78,21 @@ const handlePredictClick = async () => {
       })
     });
 
-    const data = await response.json();
-    setPredictionResult(data);
+    const playerData = await playerResponse.json();
+    setPredictionResult(playerData);
+
+    const matchupResponse = await fetch('http://127.0.0.1:8000/api/predict-matchup/', {
+
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        game_id: selectedGameId
+      })
+    });
+    const teamData = await matchupResponse.json();
+    setMatchupResult(teamData);
   }catch (error){
-    console.error("Błąd podczas predykcji:", error);
+    console.error("Prediction Error:", error);
   } finally {
     setIsLoading(false);
   }
@@ -85,10 +102,10 @@ return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h1>NBA AI Predictor</h1>
       
-      {/* KROK 1: WYBÓR MECZU */}
-      <h2>1. Wybierz mecz</h2>
+      {/* Selecting a game*/}
+      <h2>1. Pick a game.</h2>
       <select value={selectedGameId} onChange={handleGameChange} style={{ width: '100%', padding: '8px' }}>
-        <option value="">-- Wybierz mecz --</option>
+        <option value="">-- Pick a game --</option>
         {games.map((game) => (
           <option key={game.id} value={game.id}>
             {game.game_date}: {game.away_team.name} @ {game.home_team.name}
@@ -96,62 +113,53 @@ return (
         ))}
       </select>
 
-      {/* KROK 2: WYBÓR DRUŻYNY (Pojawia się tylko gdy wybrano mecz) */}
+      {/*Seleccting a team*/}
       {selectedGameObj && (
         <div style={{ marginTop: '20px' }}>
-          <h2>2. Wybierz drużynę</h2>
+          <h2>2. Pick a team</h2>
           <select 
             value={selectedTeam} 
             onChange={(e) => setSelectedTeam(e.target.value)}
             style={{ width: '100%', padding: '8px' }}
           >
-            <option value="">-- Z jakiej drużyny jest zawodnik? --</option>
-            {/* Wyciągamy Gości z wybranego meczu */}
+            <option value="">-- Which team is the player on? --</option>
+            {/* Fetching away team */}
             <option value={selectedGameObj.away_team.id}>
-              Goście: {selectedGameObj.away_team.name}
+              Away Team: {selectedGameObj.away_team.name}
             </option>
-            {/* Wyciągamy Gospodarzy z wybranego meczu */}
+            {/* Fetching home team */}
             <option value={selectedGameObj.home_team.id}>
-              Gospodarze: {selectedGameObj.home_team.name}
+              Home Team: {selectedGameObj.home_team.name}
             </option>
           </select>
         </div>
       )}
 
-      {/* KROK 3: WYBÓR ZAWODNIKA (Pojawia się tylko gdy wybrano drużynę) */}
+      {/* Picking a player (only if there is a team selected) */}
       {selectedTeam && (
         <div style={{ marginTop: '20px' }}>
-          <h2>3. Wybierz zawodnika</h2>
+          <h2>3. Pick a player</h2>
           <select 
             value={selectedPlayer} 
             onChange={(e) => setSelectedPlayer(e.target.value)}
             disabled={players.length === 0}
             style={{ width: '100%', padding: '8px' }}
           >
-            <option value="">-- Kogo chcesz sprawdzić? --</option>
+            <option value="">-- Who do you want to check? --</option>
             {players.map((player) => (
               <option key={player.id} value={player.id}>
-                {player.full_name} ({player.position || "Brak pozycji"})
+                {player.full_name} ({player.position || "No position"})
               </option>
             ))}
           </select>
         </div>
       )}
 
-      {/* PODSUMOWANIE GOTOWOŚCI DO PREDYKCJI */}
+      {/* Prediction summary*/}
       {selectedPlayer && (
         <div style={{ marginTop: '30px', padding: '15px', backgroundColor: '#f0f8ff', borderRadius: '8px' }}>
-          <h3>Przygotowanie do wyliczeń</h3>
-          <p>Będziemy przewidywać statystyki dla zawodnika o ID <strong>{selectedPlayer}</strong>.</p>
-          <p>
-            Gra on przeciwko drużynie o ID:{' '}
-            <strong>
-              {/* Sprytne obliczenie: jeśli wybrałeś drużynę gości, przeciwnikiem jest gospodarz (i na odwrót) */}
-              {selectedTeam.toString() === selectedGameObj.away_team.id.toString() 
-                ? selectedGameObj.home_team.id 
-                : selectedGameObj.away_team.id}
-            </strong>
-          </p>
+          <h3>Prepering to calculate</h3>
+          <p>Predictiong stats for a player with ID <strong>{selectedPlayer}</strong>.</p>
           <button 
             onClick={handlePredictClick}
             disabled={isLoading}
@@ -159,15 +167,20 @@ return (
             >
               {isLoading ? "Calculating...": "Start Prediction"}
           </button>
-          {/*Prediction result section */}
-          {predictionResult && (
-            <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e6ffe6', border: '1px solid #4caf50', borderRadius: '8px' }}>
-              <h3 style={{ margin: '0 0 10px 0', color: '#2e7d32' }}>Wynik Predykcji:</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', margin: '0' }}>
-                {predictionResult.predicted_points} pkt
-              </p>
+          {/*Rendering new cards*/}
+          <div style={{ marginTop: '20px' }}>
+            {predictionResult && selectedPlayerObj && predictionResult.predictions && (
+              <PlayerPredictionCard
+              playerData={{name: selectedPlayerObj.full_name}}
+              predictions={predictionResult.predictions}
+              />
+            )}
+            {matchupResult && (
+              <TeamMatchupCard
+              matchupData={matchupResult}
+              />
+            )}
             </div>
-          )}
         </div>
       )}
     </div>
