@@ -28,7 +28,7 @@ TEAM_DIFF_MODEL = joblib.load(TEAM_DIFF_MODEL_PATH) if os.path.exists(TEAM_DIFF_
 
 for target in TARGETS:
     model_path = os.path.abspath(os.path.join(str(settings.BASE_DIR), '...', f'nba_player_{target}_model.joblib' ))
-    if os.path.exist(model_path):
+    if os.path.exists(model_path):
         ML_MODELS[target] = joblib.load(model_path)
     else:
         print(f"Warning: No model for stat: {target.upper()}")
