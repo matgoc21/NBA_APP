@@ -15,19 +15,20 @@ from rest_framework import status
 from django.http import JsonResponse
 from .models import Team, Player, Game
 import xgboost as xgb
+from django.core.cache import cache
 # Create your views here.
 
 #Loading fleet of models into the RAM memory
 TARGETS = ['pts', 'reb', 'ast', 'stl', 'blk', 'tov', 'fg3m']
 ML_MODELS = {}
 TEAM_WIN_MODEL_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, '..', 'nba_team_win_prob_model.joblib'))
-TEAM_DIFF_MODEL_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, '..', 'nba_team_point_diff.joblib'))
+TEAM_DIFF_MODEL_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, '..', 'nba_team_point_diff_model.joblib'))
 
 TEAM_WIN_MODEL = joblib.load(TEAM_WIN_MODEL_PATH) if os.path.exists(TEAM_WIN_MODEL_PATH) else None
 TEAM_DIFF_MODEL = joblib.load(TEAM_DIFF_MODEL_PATH) if os.path.exists(TEAM_DIFF_MODEL_PATH) else None
 
 for target in TARGETS:
-    model_path = os.path.abspath(os.path.join(str(settings.BASE_DIR), '...', f'nba_player_{target}_model.joblib' ))
+    model_path = os.path.abspath(os.path.join(str(settings.BASE_DIR), '..', f'nba_player_{target}_model.joblib' ))
     if os.path.exists(model_path):
         ML_MODELS[target] = joblib.load(model_path)
     else:
@@ -52,16 +53,23 @@ def predict_score(request):
             season_year = year if game.game_date.month > 7 else year - 1
             season_str = f"{season_year}-{str(season_year + 1)[-2:]}"
 
+            player_cache_key = f"player_logs_{player.nba_id}_{season_str}"
+            team_cache_key = f"team_logs_league_{season_str}"
             #date_before_game = (game.game_date - timedelta(days=1)).strftime('%m/%d/%Y')
             try:
-
-                log = playergamelogs.PlayerGameLogs(
-                    player_id_nullable=player.nba_id,
-                    season_nullable=season_str,
-                )
-                df_player = log.get_data_frames()[0]
-                team_log = teamgamelogs.TeamGameLogs(season_nullable = season_str)
-                df_team = team_log.get_data_frames()[0]
+                df_player = cache.get(player_cache_key)
+                if df_player is None:   
+                    log = playergamelogs.PlayerGameLogs(
+                        player_id_nullable=player.nba_id,
+                        season_nullable=season_str,
+                    )
+                    df_player = log.get_data_frames()[0]
+                    cache.set(player_cache_key, df_player, 43200) #12 h cache
+                df_team = cache.get(team_cache_key)
+                if df_team is None:
+                    team_log = teamgamelogs.TeamGameLogs(season_nullable = season_str)
+                    df_team = team_log.get_data_frames()[0]
+                    cache.set(team_cache_key, df_team, 43200)
             except Exception as api_err:
                 print(f"NBA API ERROR: {api_err}")
                 df_player = pd.DataFrame()
@@ -109,7 +117,7 @@ def predict_score(request):
                         'days_rest': int(days_rest),
                         'ewma_min': round(latest_state['EWMA_MIN'], 2),
                         'ewma_usg': round(latest_state['EWMA_USG_PCT'], 2),
-                        'ewma_ts': round(latest_state['EWMA_TS'], 3)
+                        'ewma_ts': round(latest_state['EWMA_TS_PCT'], 3)
                     }
 
                     #Generating prediction for every stat
