@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import PlayerPredictionCard from "./PlayerPredictionCard";
 import TeamMatchupCard from "./TeamMatchupCard";
+import SkeletonCard from "./SkeletonCard";
 
 function App() {
   //states for games
@@ -79,6 +80,7 @@ const handlePredictClick = async () => {
     });
 
     const playerData = await playerResponse.json();
+    console.log("Player Prediction Data:", playerData);
     setPredictionResult(playerData);
 
     const matchupResponse = await fetch('http://127.0.0.1:8000/api/predict-matchup/', {
@@ -90,6 +92,7 @@ const handlePredictClick = async () => {
       })
     });
     const teamData = await matchupResponse.json();
+    console.log("Matchup Prediction Data:", teamData);
     setMatchupResult(teamData);
   }catch (error){
     console.error("Prediction Error:", error);
@@ -167,6 +170,28 @@ return (
             >
               {isLoading ? "Calculating...": "Start Prediction"}
           </button>
+          {/*Skeleton Cards*/}
+          <div style={{ marginTop: '20px'}}>
+            {isLoading && (
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
+            )}
+
+            {!isLoading && predictionResult && selectedPlayerObj && predictionResult.predictions &&(
+              <PlayerPredictionCard
+              playerData={{name: selectedPlayerObj.full_name}}
+              predictions={predictionResult.predictions}
+              />
+            )}
+
+            {!isLoading && matchupResult && (
+              <TeamMatchupCard
+                matchupData={matchupResult}
+              />
+            )}
+            </div>
           {/*Rendering new cards*/}
           <div style={{ marginTop: '20px' }}>
             {predictionResult && selectedPlayerObj && predictionResult.predictions && (
